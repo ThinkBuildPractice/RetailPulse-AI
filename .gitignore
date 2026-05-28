@@ -1,0 +1,12 @@
+# Spark outputs
+*.crc
+_SUCCESS
+
+# Generated parquet files
+data/bronze/
+data/silver/
+data/gold/
+
+# Python
+__pycache__/
+*.pyc
