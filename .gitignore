@@ -2,10 +2,19 @@
 *.crc
 _SUCCESS
 
-# Generated parquet files
-data/bronze/
-data/silver/
-data/gold/
+# Generated data layers
+data/bronze/*
+data/silver/*
+data/gold/*
+data/marts/*
+data/dashboard_exports/*
+
+# Keep directory structure
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+!data/marts/.gitkeep
+!data/dashboard_exports/.gitkeep
 
 # Python
 __pycache__/
