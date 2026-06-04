@@ -1,0 +1,4 @@
+customer_id,customer_name,city,effective_date,end_date,is_current
+1001,Rahul,Delhi,2025-01-01,9999-12-31,Y
+1002,Ankit,Mumbai,2025-01-01,9999-12-31,Y
+1003,Priya,Bangalore,2025-01-01,9999-12-31,Y
