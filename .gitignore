@@ -1,3 +1,6 @@
+# CDC output
+data/cdc/customer_master_updated/
+
 # Spark outputs
 *.crc
 _SUCCESS
@@ -16,6 +19,23 @@ data/dashboard_exports/*
 !data/marts/.gitkeep
 !data/dashboard_exports/.gitkeep
 
+# CDC outputs
+data/cdc/customer_master_updated/*
+
+# Keep CDC sample files
+!data/cdc/customer_changes.csv
+!data/cdc/customer_master.csv
+
 # Python
 __pycache__/
 *.pyc
+
+# Virtual environment
+.venv/
+
+# MacOS
+.DS_Store
+
+# Logs & Reports
+logs/
+quality_reports/

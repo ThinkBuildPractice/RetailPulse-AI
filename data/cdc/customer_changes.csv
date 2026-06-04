@@ -1,0 +1,7 @@
+customer_id,customer_name,city,op_type
+1001,Rahul,Delhi,I
+1002,Ankit,Mumbai,I
+1003,Priya,Bangalore,I
+1002,Ankit,Pune,U
+1003,Priya,Bangalore,D
+1004,Neha,Chennai,I
