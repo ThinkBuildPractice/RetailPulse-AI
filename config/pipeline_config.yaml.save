@@ -1,0 +1,21 @@
+paths:
+
+  raw: data/raw
+
+  bronze: data/bronze
+
+  silver: data/silver
+
+  gold: data/gold
+
+  marts: data/marts
+
+  dashboard_exports: data/dashboard_exports
+
+logging:
+
+  log_file: logs/pipeline.log
+
+pipeline:
+
+  app_name: RetailPulse-AI
