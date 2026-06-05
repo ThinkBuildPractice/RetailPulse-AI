@@ -26,6 +26,11 @@ data/cdc/customer_master_updated/*
 !data/cdc/customer_changes.csv
 !data/cdc/customer_master.csv
 
+# SCD Outputs
+data/scd/*_updated/
+
+*.save
+
 # Python
 __pycache__/
 *.pyc

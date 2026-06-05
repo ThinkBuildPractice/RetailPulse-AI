@@ -1,10 +1,19 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from datetime import date
+from pyspark.sql.functions import date_sub
 
-spark = SparkSession.builder \
-    .appName("RetailPulse SCD Type 2") \
+# ==========================================
+# SPARK SESSION
+# ==========================================
+
+spark = (
+    SparkSession.builder
+    .appName("RetailPulse SCD Type 2")
     .getOrCreate()
+)
+
+today = F.current_date()
 
 # ==========================================
 # LOAD DIMENSION
@@ -17,11 +26,10 @@ dimension_df = spark.read.csv(
 )
 
 print("Current Dimension")
-
 dimension_df.show()
 
 # ==========================================
-# LOAD CDC
+# LOAD CDC FILE
 # ==========================================
 
 cdc_df = spark.read.csv(
@@ -31,37 +39,59 @@ cdc_df = spark.read.csv(
 )
 
 print("CDC Changes")
-
 cdc_df.show()
 
 # ==========================================
-# FILTER UPDATES ONLY
+# SPLIT CDC OPERATIONS
 # ==========================================
+
+inserts = cdc_df.filter(
+    F.col("op_type") == "I"
+)
 
 updates = cdc_df.filter(
     F.col("op_type") == "U"
 )
 
-print("Update Records")
+deletes = cdc_df.filter(
+    F.col("op_type") == "D"
+)
 
+print("INSERTS")
+inserts.show()
+
+print("UPDATES")
 updates.show()
 
+print("DELETES")
+deletes.show()
+
 # ==========================================
-# EXPIRE OLD RECORDS
+# CURRENT / HISTORICAL RECORDS
 # ==========================================
 
-today = str(date.today())
+current_dim = dimension_df.filter(
+    F.col("is_current") == "Y"
+)
 
-expired_records = (
-    dimension_df.alias("dim")
+historical_dim = dimension_df.filter(
+    F.col("is_current") == "N"
+)
+
+# ==========================================
+# EXPIRE UPDATED RECORDS
+# ==========================================
+
+expired_update_records = (
+    current_dim
     .join(
-        updates.select("customer_id").alias("upd"),
+        updates.select("customer_id"),
         on="customer_id",
         how="inner"
     )
     .withColumn(
         "end_date",
-        F.lit(today)
+        date_sub(today, 1)
     )
     .withColumn(
         "is_current",
@@ -69,54 +99,122 @@ expired_records = (
     )
 )
 
-print("Expired Records")
-
-expired_records.show()
+print("Expired Update Records")
+expired_update_records.show()
 
 # ==========================================
-# KEEP UNCHANGED RECORDS
+# NEW CURRENT UPDATE RECORDS
 # ==========================================
 
-unchanged_records = (
-    dimension_df.alias("dim")
+new_update_records = (
+    updates.select(
+        "customer_id",
+        "customer_name",
+        "city"
+    )
+    .withColumn(
+        "effective_date",
+        today
+    )
+    .withColumn(
+        "end_date",
+        F.lit("9999-12-31")
+    )
+    .withColumn(
+        "is_current",
+        F.lit("Y")
+    )
+)
+
+print("New Update Records")
+new_update_records.show()
+
+# ==========================================
+# PROCESS DELETES
+# ==========================================
+
+deleted_records = (
+    current_dim
     .join(
-        updates.select("customer_id").alias("upd"),
+        deletes.select("customer_id"),
+        on="customer_id",
+        how="inner"
+    )
+    .withColumn(
+        "end_date",
+        date_sub(today, 1)
+    )
+    .withColumn(
+        "is_current",
+        F.lit("N")
+    )
+)
+
+print("Deleted Records")
+deleted_records.show()
+
+# ==========================================
+# PROCESS INSERTS
+# ==========================================
+
+insert_records = (
+    inserts
+    .join(
+        dimension_df.select("customer_id"),
+        on="customer_id",
+        how="left_anti"
+    )
+    .select(
+        "customer_id",
+        "customer_name",
+        "city"
+    )
+    .withColumn(
+        "effective_date",
+        today
+    )
+    .withColumn(
+        "end_date",
+        F.lit("9999-12-31")
+    )
+    .withColumn(
+        "is_current",
+        F.lit("Y")
+    )
+)
+
+print("Insert Records")
+insert_records.show()
+
+# ==========================================
+# KEEP UNCHANGED CURRENT RECORDS
+# ==========================================
+
+remaining_current = (
+    current_dim
+    .join(
+        updates.select("customer_id"),
+        on="customer_id",
+        how="left_anti"
+    )
+    .join(
+        deletes.select("customer_id"),
         on="customer_id",
         how="left_anti"
     )
 )
 
 # ==========================================
-# NEW CURRENT RECORDS
-# ==========================================
-
-new_records = updates.select(
-    "customer_id",
-    "customer_name",
-    "city"
-).withColumn(
-    "effective_date",
-    F.lit(today)
-).withColumn(
-    "end_date",
-    F.lit("9999-12-31")
-).withColumn(
-    "is_current",
-    F.lit("Y")
-)
-
-print("New Records")
-
-new_records.show()
-
-# ==========================================
 # FINAL DIMENSION
 # ==========================================
 
 final_dimension = (
-    unchanged_records
-    .unionByName(expired_records)
-    .unionByName(new_records)
+    historical_dim
+    .unionByName(remaining_current)
+    .unionByName(expired_update_records)
+    .unionByName(new_update_records)
+    .unionByName(deleted_records)
+    .unionByName(insert_records)
 )
 
 print("Final Dimension")
@@ -129,7 +227,7 @@ final_dimension.orderBy(
 )
 
 # ==========================================
-# SAVE
+# SAVE OUTPUT
 # ==========================================
 
 final_dimension.coalesce(1).write \
@@ -139,8 +237,6 @@ final_dimension.coalesce(1).write \
         "data/scd/customer_dimension_updated"
     )
 
-print(
-    "SCD Type 2 Dimension Saved Successfully"
-)
+print("SCD Type 2 Dimension Saved Successfully")
 
 spark.stop()
