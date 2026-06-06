@@ -31,6 +31,10 @@ data/scd/*_updated/
 
 *.save
 
+# Incremental Framework Outputs
+data/watermark/pipeline_watermark/*
+!data/watermark/pipeline_watermark/.gitkeep
+
 # Python
 __pycache__/
 *.pyc
